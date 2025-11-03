@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VerseIndex - Scripture & Topics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Prevent macOS Look Up globally for word elements */
+        .word {
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>VerseIndex</h1>
+            <p class="subtitle">Scripture and Related Topics</p>
+            <div class="version-selector-container">
+                <label for="version-selector">Bible Version:</label>
+                <select id="version-selector" class="version-selector" onchange="changeVersion()">
+                    <option value="">Loading versions...</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Left Pane: Bible Navigator -->
+            <div class="pane bible-navigator-pane">
+                <div class="pane-header">
+                    <h2>Bible Navigator</h2>
+                </div>
+                <div class="pane-body">
+                    <div id="bible-navigator" class="bible-navigator">
+                        <!-- Bible books will be loaded here -->
+                    </div>
+                    <div id="chapter-list" class="chapter-list" style="display: none;">
+                        <!-- Chapters will be shown here when a book is selected -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Pane: Scripture Content -->
+            <div class="pane scripture-pane">
+                <div class="pane-header">
+                    <h2 id="middle-pane-title">Scripture</h2>
+                </div>
+                <div class="pane-body">
+                    <div id="scripture-content" class="scripture-content">
+                        <p class="placeholder">Select a book and chapter to view scripture</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Selection and Topics -->
+            <div class="right-side-panes">
+                <!-- Selection Pane -->
+                <div class="pane selection-pane">
+                    <div class="pane-header">
+                        <h2>Selection</h2>
+                    </div>
+                    <div class="pane-body">
+                        <div id="selection-content" class="selection-content">
+                            <p class="placeholder">Select words to create a highlight</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Topics Pane -->
+                <div class="pane topics-pane">
+                    <div class="pane-header">
+                        <h2>Related Topics</h2>
+                    </div>
+                    <div class="pane-body">
+                        <div id="topics-content" class="topics-content">
+                            <p class="placeholder">Select a scripture verse to see related topics</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
+
