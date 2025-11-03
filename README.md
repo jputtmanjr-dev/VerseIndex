@@ -1,13 +1,17 @@
 # VerseIndex
 
-A web application for displaying scripture verses and their related topics in a two-pane layout.
+A web application for displaying scripture verses and their related topics with precise word-level tagging capabilities.
 
 ## Features
 
-- **Two-Pane Layout**: Scripture verses in the left pane, related topics in the right pane
-- **Search Functionality**: Search scripture by book and/or chapter
-- **Interactive Selection**: Click on a verse to see its related topics
-- **RESTful API**: Full API for managing scripture and topics
+- **Three-Pane Layout**: Bible navigator (left), scripture content (middle), topics and selection (right)
+- **Bible Navigator**: Browse all books and chapters in standard Protestant order
+- **Version Selector**: Switch between different Bible versions (WEB, NET, etc.)
+- **Interactive Selection**: Select words or word ranges across verses to create highlights
+- **Tags/Highlights**: Create precise word-level tags linking scripture ranges to topics
+- **Topic-Based Filtering**: Topics automatically show/hide based on visible verses in the middle pane
+- **Expandable Topics**: View individual tags for each topic and highlight specific ranges
+- **RESTful API**: Full API for managing scripture, topics, versions, and tags
 - **SQLite Database**: Lightweight, file-based database (no separate server needed)
 
 ## Technology Stack
@@ -66,6 +70,8 @@ A web application for displaying scripture verses and their related topics in a 
 VerseIndex/
 ├── app.py                 # Main Flask application
 ├── init_sample_data.py    # Script to add sample data
+├── download_bible.py      # Script to download Bible versions from bible-api.com
+├── migrate_to_tags.py     # Migration script for converting highlights to tags
 ├── requirements.txt       # Python dependencies
 ├── verseindex.db         # SQLite database (created on first run)
 ├── templates/
@@ -114,6 +120,29 @@ VerseIndex/
     "topic_id": 1
   }
   ```
+
+### Tags (Highlights)
+
+- `GET /api/scripture/tags` - Get all tags for a chapter (optional query params: `?book=Genesis&chapter=1&version_id=1`)
+- `POST /api/scripture/tags` - Create a new tag
+  ```json
+  {
+    "topic_id": 1,
+    "version": "WEB",
+    "start_position": "Gen 1:1.0",
+    "end_position": "Gen 1:5.10"
+  }
+  ```
+  
+Tags use position strings in the format `"Book Chapter:Verse.WordIndex"` where:
+- `Book` is the book abbreviation (e.g., "Gen", "Ex")
+- `Chapter` is the chapter number
+- `Verse` is the verse number
+- `WordIndex` is the word index (0-based)
+
+### Versions
+
+- `GET /api/versions` - Get all available Bible versions
 
 ## Deployment Options
 
@@ -166,11 +195,31 @@ Run the sample data script to populate the database with example scripture and t
 python init_sample_data.py
 ```
 
+### Downloading Bible Versions
+
+The application includes scripts to download Bible versions from the bible-api.com service:
+
+1. **Download specific books and versions:**
+   ```bash
+   python download_bible.py
+   ```
+   This script downloads WEB and NET versions for Genesis and Exodus.
+
+2. **Download specific chapters:**
+   ```bash
+   python download_exodus_web.py
+   ```
+   This script downloads all chapters of Exodus for the WEB version.
+
+Note: The bible-api.com service has rate limits, so the scripts include delays between requests.
+
 ### Database Schema
 
-- **scripture**: Stores scripture verses (id, book, chapter, verse, text)
+- **scripture**: Stores scripture verses (id, book, chapter, verse, text, version_id, format_type)
 - **topics**: Stores topics (id, name, description)
 - **scripture_topics**: Junction table linking verses to topics
+- **scripture_tags**: Stores word-level tags/highlights (id, topic_id, version, start_position, end_position, created_at)
+- **bible_versions**: Stores Bible version information (id, name, abbreviation, full_name)
 
 ## License
 
