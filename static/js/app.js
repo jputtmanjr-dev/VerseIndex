@@ -247,8 +247,8 @@ async function renderVerses(bookName, chapter, verses) {
             clearTopicHighlight();
             expandedTopics.clear();
             
-            // Display topics in topics pane (will be filtered by visibility)
-            displayTopics(chapterTopics, true);
+            // Display topics initially (without filtering, observer will filter after setup)
+            displayTopics(chapterTopics, false);
         } catch (error) {
             console.error('Error loading chapter topics:', error);
             document.getElementById('topics-content').innerHTML = 
@@ -268,7 +268,7 @@ async function renderVerses(bookName, chapter, verses) {
         </div>
     `;
     
-    // Set up intersection observer for verse visibility
+    // Set up intersection observer for verse visibility (will update topics display)
     setupVerseVisibilityObserver();
 }
 
@@ -926,7 +926,7 @@ function displayTopics(topics, filterByVisibility = false) {
     
     // If filtering by visibility, only show topics for visible verses
     let topicsToShow = topics;
-    if (filterByVisibility && visibleVerseIds.size > 0) {
+    if (filterByVisibility) {
         topicsToShow = topics.filter(topic => {
             const topicVerses = topicToVersesMap.get(topic.id);
             if (!topicVerses || topicVerses.size === 0) return false;
@@ -1336,6 +1336,54 @@ async function buildTopicToVersesMap(topics, verses) {
     }
 }
 
+// Function to check which verses are currently visible
+function checkVisibleVerses() {
+    const scripturePane = document.querySelector('.scripture-pane .pane-body');
+    if (!scripturePane) return;
+    
+    const paneRect = scripturePane.getBoundingClientRect();
+    const paneTop = paneRect.top;
+    const paneBottom = paneRect.bottom;
+    
+    const newVisibleIds = new Set();
+    const verseElements = document.querySelectorAll('.verse-inline, .poetry-line');
+    
+    verseElements.forEach(verseEl => {
+        const verseId = verseEl.getAttribute('data-verse-id');
+        if (!verseId) return;
+        
+        const verseRect = verseEl.getBoundingClientRect();
+        // Check if verse is visible within the scrollable pane
+        if (verseRect.top < paneBottom && verseRect.bottom > paneTop) {
+            newVisibleIds.add(parseInt(verseId));
+        }
+    });
+    
+    // Check if visibility actually changed
+    let hasChanges = false;
+    if (newVisibleIds.size !== visibleVerseIds.size) {
+        hasChanges = true;
+    } else {
+        for (const id of newVisibleIds) {
+            if (!visibleVerseIds.has(id)) {
+                hasChanges = true;
+                break;
+            }
+        }
+    }
+    
+    if (hasChanges) {
+        visibleVerseIds = newVisibleIds;
+        // Update topics display based on visible verses
+        displayTopics(allChapterTopics, true);
+        
+        // Preserve active state for selected topic
+        if (selectedTopicId !== null) {
+            updateTopicSelection(selectedTopicId);
+        }
+    }
+}
+
 // Set up intersection observer to track visible verses
 function setupVerseVisibilityObserver() {
     // Clean up existing observer
@@ -1345,54 +1393,53 @@ function setupVerseVisibilityObserver() {
     
     visibleVerseIds.clear();
     
-    // Find the scripture pane container
+    // Find the scripture pane container (the scrollable element)
     const scripturePane = document.querySelector('.scripture-pane .pane-body');
-    if (!scripturePane) return;
+    if (!scripturePane) {
+        console.warn('Scripture pane not found, cannot set up visibility observer');
+        return;
+    }
     
-    // Create intersection observer
+    // Create intersection observer with the scrollable container as root
     topicsIntersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            const verseElement = entry.target;
-            const verseId = parseInt(verseElement.getAttribute('data-verse-id'));
-            
-            if (!verseId) return;
-            
-            if (entry.isIntersecting) {
-                visibleVerseIds.add(verseId);
-            } else {
-                visibleVerseIds.delete(verseId);
+        // Use the manual check function for more reliable detection
+        checkVisibleVerses();
+    }, {
+        root: scripturePane, // Use the scrollable container as root
+        rootMargin: '0px',
+        threshold: 0 // Fire when any part of the element is visible
+    });
+    
+    // Also listen to scroll events as a backup
+    let scrollTimeout = null;
+    scripturePane.addEventListener('scroll', () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            checkVisibleVerses();
+        }, 50); // Debounce scroll events
+    }, { passive: true });
+    
+    // Use requestAnimationFrame to ensure DOM is fully rendered
+    requestAnimationFrame(() => {
+        // Observe all verse elements
+        const verseElements = document.querySelectorAll('.verse-inline, .poetry-line');
+        
+        if (verseElements.length === 0) {
+            console.warn('No verse elements found for visibility observer');
+            return;
+        }
+        
+        verseElements.forEach(verseEl => {
+            const verseId = verseEl.getAttribute('data-verse-id');
+            if (verseId) {
+                // Start observing
+                topicsIntersectionObserver.observe(verseEl);
             }
         });
         
-        // Update topics display based on visible verses
-        displayTopics(allChapterTopics, true);
-        
-        // Preserve active state for selected topic
-        if (selectedTopicId !== null) {
-            updateTopicSelection(selectedTopicId);
-        }
-    }, {
-        root: scripturePane,
-        rootMargin: '0px',
-        threshold: 0.1 // Consider visible if at least 10% is shown
+        // Do initial visibility check
+        checkVisibleVerses();
     });
-    
-    // Observe all verse elements
-    const verseElements = document.querySelectorAll('.verse-inline, .poetry-line');
-    verseElements.forEach(verseEl => {
-        const verseId = verseEl.getAttribute('data-verse-id');
-        if (verseId) {
-            topicsIntersectionObserver.observe(verseEl);
-            // Check initial visibility
-            if (verseEl.getBoundingClientRect().top < scripturePane.getBoundingClientRect().bottom &&
-                verseEl.getBoundingClientRect().bottom > scripturePane.getBoundingClientRect().top) {
-                visibleVerseIds.add(parseInt(verseId));
-            }
-        }
-    });
-    
-    // Initial display update
-    displayTopics(allChapterTopics, true);
 }
 
 // Toggle topic verses visibility
